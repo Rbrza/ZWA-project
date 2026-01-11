@@ -1,14 +1,56 @@
 <?php
-
+/**
+ * User update handler (POST).
+ *
+ * Updates editable fields of a user row in Database.csv (semicolon delimited),
+ * including optional profile photo upload.
+ *
+ * Inputs (POST):
+ * - id, name, surname, DOB, email, phone, ICO
+ * - FILES photo (optional): profile image
+ *
+ * Authorization:
+ * - Admin can update any user.
+ * - Non-admin can only update their own id.
+ *
+ * Storage:
+ * - Database.csv is rewritten under exclusive lock (flock).
+ * - If photo is uploaded, it is stored in /uploads and path saved into CSV column 'photo' (if it exists).
+ *
+ * Output:
+ * - Redirects to person-details.php?id=... (PRG).
+ *
+ * Security:
+ * - Server-side validation for all fields.
+ * - File upload validated by MIME via getimagesize() and size limit.
+ * - CSV injection prevention on text fields.
+ */
 require_once __DIR__ . '/auth.php';
-
+/**
+ * Ends request with message + HTTP code.
+ *
+ * @param string $msg Error message to output.
+ * @param int    $code HTTP status code.
+ * @return void
+ */
 function fail($msg, $code = 400)
 {
     http_response_code($code);
     echo $msg;
     exit;
 }
-
+/**
+ * Saves uploaded profile photo (if provided) and returns path to store in CSV.
+ *
+ * Rules:
+ * - No file -> returns null
+ * - Validates upload status, max size, and file type by content (getimagesize)
+ * - Supports JPEG, PNG, WEBP
+ * - Overwrites previous photo for the user (stable filename profile_{id}.ext)
+ *
+ * @param string|int $userId User id (used in destination filename).
+ * @return string|null Relative web path like "uploads/profile_12.jpg" or null if no upload.
+ */
 function saveUploadedPhoto($userId) {
     if (!isset($_FILES['photo']) || !is_array($_FILES['photo'])) return null;
     if (!isset($_FILES['photo']['error']) || $_FILES['photo']['error'] === UPLOAD_ERR_NO_FILE) return null;
@@ -57,7 +99,12 @@ function saveUploadedPhoto($userId) {
     return 'uploads/' . $filename;
 }
 
-
+/**
+ * Cleans input for CSV storage and prevents CSV injection.
+ *
+ * @param mixed $v Input value.
+ * @return string Clean string.
+ */
 function clean($v)
 {
     $v = trim((string)$v);

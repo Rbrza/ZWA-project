@@ -1,6 +1,37 @@
 <?php
+/**
+ * Insurance update handler (POST).
+ *
+ * Adds/removes a single insurance code from the currently logged-in user's active_insurances,
+ * and recalculates MT (monthly total) as the sum of all active insurance prices.
+ *
+ * Inputs (POST):
+ * - action: "add" | "remove"
+ * - code: insurance product code (string)
+ *
+ * Data storage:
+ * - Database.csv (semicolon separated)
+ * - active_insurances: comma-separated list of insurance codes
+ * - MT: numeric string total price (CZK)
+ *
+ * Concurrency:
+ * - Uses flock(LOCK_EX) for safe read-modify-write.
+ *
+ * Output:
+ * - Redirects to insurance-list.php (PRG).
+ *
+ * Security:
+ * - Requires authentication (auth.php).
+ * - Only updates the logged-in user's row (user_id from session).
+ */
 require_once __DIR__ . '/auth.php';
-
+/**
+ * Stops execution with an HTTP status code and message.
+ *
+ * @param string $msg Error message.
+ * @param int    $code HTTP status.
+ * @return void
+ */
 function fail($msg, $code = 400) {
     http_response_code($code);
     exit($msg);

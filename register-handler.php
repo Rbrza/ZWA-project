@@ -1,10 +1,67 @@
 <?php
-function fail($msg, $code = 400) {
-    http_response_code($code);
-    echo json_encode(["error" => $msg], JSON_UNESCAPED_UNICODE);
+/**
+ * Registration handler (POST).
+ *
+ * Validates registration form data and appends a new user row to Database.csv.
+ * Uses PRG (POST-Redirect-GET):
+ * - On validation error: stores flash error + old form values into session, then redirects to register-page.php.
+ * - On success: writes the CSV row and redirects to login-page.php.
+ *
+ * Inputs (POST):
+ * - name, surname, DOB (Y-m-d), email, phone, password
+ *
+ * CSV storage:
+ * - File: Database.csv (semicolon delimited)
+ * - Columns written: id, name, surname, DOB, email, phone, ICO, MT, score, active_insurances, ACType, passwordHash
+ *
+ * Concurrency:
+ * - Uses flock(LOCK_EX) to prevent concurrent writes corrupting the CSV.
+ *
+ * Security notes:
+ * - Uses password_hash for password storage.
+ * - Uses filter_var + regex + DateTime parsing for server-side validation.
+ * - Uses a "CSV injection" mitigation for values that start with "=", "+", "-", "@".
+ */
+if (!isset($_SESSION)) session_start();
+/**
+ * Stores validation error state into session and redirects to the registration page.
+ *
+ * @param string      $msg   Human-readable error message.
+ * @param string|null $field Optional field key to highlight on the form.
+ * @param int         $code  HTTP status code (not strictly used due to redirect, kept for clarity).
+ * @return void
+ */
+function fail($msg, $field = null, $code = 400) {
+    if (!isset($_SESSION)) session_start();
+
+    // store error info
+    $_SESSION['reg_error'] = $msg;
+    if ($field !== null) {
+        $_SESSION['reg_error_field'] = $field;
+    }
+
+    // store old form values (except password)
+    $_SESSION['reg_old'] = array(
+        'name'    => isset($_POST['name']) ? $_POST['name'] : '',
+        'surname' => isset($_POST['surname']) ? $_POST['surname'] : '',
+        'email'   => isset($_POST['email']) ? $_POST['email'] : '',
+        'phone'   => isset($_POST['phone']) ? $_POST['phone'] : '',
+        'DOB'     => isset($_POST['DOB']) ? $_POST['DOB'] : '',
+    );
+
+    header("Location: register-page.php");
     exit;
 }
 
+/**
+ * Trims input and applies CSV injection prevention.
+ *
+ * If a value begins with "=", "+", "-", "@", a leading apostrophe is prepended.
+ * This prevents spreadsheet applications from interpreting the value as a formula.
+ *
+ * @param mixed $v Raw value from request.
+ * @return string Clean string value.
+ */
 function clean($v) {
     $v = trim((string)$v);
     // prevent CSV injection (Excel formulas)

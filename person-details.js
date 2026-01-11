@@ -2,18 +2,34 @@ document.addEventListener("DOMContentLoaded", () => {
     const userId = window.USER_ID;
     const table = document.getElementById("main-table-tbody-person-details");
 
-    if (!userId) {
-        table.innerHTML = `<tr><td>Missing USER_ID: ${userId}</td></tr>`;
+    const showMessageRow = (message) => {
+        // clear table safely
+        while (table.firstChild) table.removeChild(table.firstChild);
+
+        const tr = document.createElement("tr");
+        const td = document.createElement("td");
+        td.colSpan = 2; // your details table is 2 columns: th + td
+        td.textContent = message;
+
+        tr.appendChild(td);
+        table.appendChild(tr);
+    };
+
+
+    if (userId === undefined || userId === null || userId === "") {
+        showMessageRow("Missing USER_ID");
         return;
     }
+
 
     fetch("get-user.php?id=" + encodeURIComponent(userId))
         .then(r => r.json())
         .then(user => {
             if (user.error) {
-                table.innerHTML = `<tr><td>${user.error}</td></tr>`;
+                showMessageRow(user.error);
                 return;
             }
+
 
             if (user.photo) {
                 const tr = document.createElement("tr");
@@ -105,6 +121,7 @@ document.addEventListener("DOMContentLoaded", () => {
         })
         .catch(err => {
             console.error(err);
-            table.innerHTML = `<tr><td>Error loading user.</td></tr>`;
+            showMessageRow("Error loading user.");
         });
+
 });

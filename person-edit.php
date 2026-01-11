@@ -1,4 +1,24 @@
 <?php
+/**
+ * Person edit page (GET).
+ *
+ * Displays an edit form for a single user, prefilled by person-edit.js via get-user.php.
+ * Submits changes to update-user.php (POST).
+ *
+ * Access control:
+ * - Admins may edit any user.
+ * - Non-admin users may only edit their own user row.
+ *   If a non-admin tries to edit another user's id, they are redirected to their own details.
+ *
+ * Required query parameters:
+ * - id (string|int): user id from Database.csv.
+ *
+ * Security:
+ * - Requires authentication (auth.php).
+ * - Authorization is enforced here.
+ * - id is injected into JS using json_encode to prevent XSS.
+ * - Photo uploads are handled by update-user.php.
+ */
 require_once __DIR__ . '/auth.php';
 $id = $_GET['id'];
 
@@ -28,6 +48,11 @@ if (!$isAdmin && (string)$id !== (string)$myId) {
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet"
           integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
     <script>
+        /**
+         * USER_ID and MAX_DOB are consumed by person-edit.js.
+         * - USER_ID: selects which user record to load.
+         * - MAX_DOB: HTML date input max value to enforce 18+ (client-side only).
+         */
         window.USER_ID = <?php echo json_encode($id); ?>;
         window.MAX_DOB = "<?php echo (new DateTime('today'))->modify('-18 years')->format('Y-m-d'); ?>";
     </script>

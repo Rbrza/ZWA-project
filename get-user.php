@@ -1,4 +1,21 @@
 <?php
+/**
+ * Read-only user lookup endpoint.
+ *
+ * Returns a single user record from Database.csv as JSON for a given ?id=... query parameter.
+ * Used by person-details.js and person-edit.js to populate UI without embedding user data in HTML.
+ *
+ * Response:
+ * - 200: JSON object of the user row (including computed fields like active_insurances_display)
+ * - 400: {"error":"Missing user ID"}
+ * - 404: {"error":"User not found"}
+ * - 500: {"error":"Database file not found" | "Database file empty"}
+ *
+ * Security notes:
+ * - This file does not enforce auth by itself; restrict access at the page level (e.g., person-details.php),
+ *   or add auth checks here if you later expose it publicly.
+ * - JSON is produced with json_encode; in the frontend, prefer textContent over innerHTML.
+ */
 header('Content-Type: application/json; charset=utf-8');
 
 require_once __DIR__ . '/insurance-catalog.php';

@@ -1,4 +1,25 @@
 <?php
+/**
+ * Admin overview page: list of insured persons (CSV-backed).
+ *
+ * Responsibilities:
+ * - Loads users from Database.csv (semicolon-delimited)
+ * - Sorts users by surname then name (locale-aware when Intl Collator is available)
+ * - Paginates the list using query parameters:
+ *     - page (int)     : 1-based page number
+ *     - per_page (int) : items per page (allowed: 1,5,10,20)
+ * - Renders an HTML table with actions:
+ *     - Zobrazit (details)
+ *     - Upravit (edit)
+ *     - Smazat (AJAX via delete-user.php)
+ *
+ * Security:
+ * - Requires login (auth.php)
+ * - Requires admin privileges (auth-admin.php)
+ *
+ * Output:
+ * - HTML page. User data is escaped with htmlspecialchars() to prevent XSS.
+ */
 require_once __DIR__ . '/auth.php';
 require_once __DIR__ . '/auth-admin.php';
 
@@ -26,6 +47,55 @@ if (file_exists($csvPath)) {
     }
 }
 
+// Sort rows by surname, then name (PHP 5.6 compatible)
+if (class_exists('Collator')) {
+    $coll = new Collator('cs_CZ');
+
+    usort($rows, function($a, $b) use ($coll) {
+        $sa = isset($a['surname']) ? $a['surname'] : '';
+        $sb = isset($b['surname']) ? $b['surname'] : '';
+
+        $cmp = $coll->compare($sa, $sb);
+        if ($cmp !== 0) return $cmp;
+
+        $na = isset($a['name']) ? $a['name'] : '';
+        $nb = isset($b['name']) ? $b['name'] : '';
+
+        $cmp = $coll->compare($na, $nb);
+        if ($cmp !== 0) return $cmp;
+
+        $ia = isset($a['id']) ? (int)$a['id'] : 0;
+        $ib = isset($b['id']) ? (int)$b['id'] : 0;
+
+        if ($ia == $ib) return 0;
+        return ($ia < $ib) ? -1 : 1;
+    });
+
+} else {
+
+    usort($rows, function($a, $b) {
+        $sa = mb_strtolower(isset($a['surname']) ? $a['surname'] : '', 'UTF-8');
+        $sb = mb_strtolower(isset($b['surname']) ? $b['surname'] : '', 'UTF-8');
+
+        $cmp = strcmp($sa, $sb);
+        if ($cmp !== 0) return $cmp;
+
+        $na = mb_strtolower(isset($a['name']) ? $a['name'] : '', 'UTF-8');
+        $nb = mb_strtolower(isset($b['name']) ? $b['name'] : '', 'UTF-8');
+
+        $cmp = strcmp($na, $nb);
+        if ($cmp !== 0) return $cmp;
+
+        $ia = isset($a['id']) ? (int)$a['id'] : 0;
+        $ib = isset($b['id']) ? (int)$b['id'] : 0;
+
+        if ($ia == $ib) return 0;
+        return ($ia < $ib) ? -1 : 1;
+    });
+}
+
+
+
 $total = count($rows);
 $totalPages = ($total === 0) ? 1 : (int)ceil($total / $perPage);
 if ($page > $totalPages) $page = $totalPages;
@@ -33,6 +103,13 @@ if ($page > $totalPages) $page = $totalPages;
 $offset = ($page - 1) * $perPage;
 $usersPage = array_slice($rows, $offset, $perPage);
 
+/**
+ * Builds a query-string for pagination links.
+ *
+ * @param int $page    1-based page number.
+ * @param int $perPage Items per page.
+ * @return string URL-encoded query string (without the leading '?').
+ */
 function qs($page, $perPage)
 {
     return 'page=' . urlencode($page) . '&per_page=' . urlencode($perPage);
@@ -101,14 +178,6 @@ require_once __DIR__ . '/header.php';
                     <?php endforeach; ?>
                 <?php endif; ?>
                 </tbody>
-                <!--
-                <tfoot>
-                <tr>
-                    <th scope="row" colspan="3">Total</th>
-                    <td>4200</td>
-                </tr>
-                </tfoot>
-                -->
             </table>
         </div>
         <div class="new-person-button-container">
