@@ -1,31 +1,41 @@
 <?php
-
 /**
- * Delete user endpoint.
+ * @file delete-user.php
+ * @brief API endpoint pro smazání uživatele z databáze.
  *
- * Receives a POST request with a user id and removes the matching row from Database.csv.
- * Returns JSON:
- *  - {"ok": true} on success
- *  - {"error": "..."} on failure
+ * Tento skript přijímá HTTP POST požadavek obsahující ID uživatele a
+ * odstraní odpovídající řádek ze souboru `Database.csv`.
  *
- * Intended usage: called via fetch() from index.php when an admin clicks "Smazat".
+ * Výstupem je JSON odpověď:
+ * - `{ "ok": true }` při úspěchu
+ * - `{ "error": "..." }` při chybě
  *
- * Security:
- * - Requires authentication (auth.php).
- * - Requires admin privileges (checked via $_SESSION['ACType']).
- * - Uses file locking (flock) while rewriting CSV to avoid races/corruption.
+ * Endpoint je určen pro volání z administrátorského rozhraní
+ * (např. tlačítko **Smazat** v `index.php` volané přes `fetch()`).
  *
- * Input:
- * - POST id (string/int) : user identifier in Database.csv.
+ * ### Bezpečnost
+ * - Vyžaduje přihlášení (`auth.php`).
+ * - Vyžaduje administrátorská oprávnění (`$_SESSION['ACType'] === 'admin'`).
+ * - Používá `flock()` pro ochranu CSV před souběžným zápisem.
+ *
+ * ### Vstup
+ * - `POST id` – identifikátor uživatele (sloupec `id` v `Database.csv`).
+ *
+ * ### Výstup
+ * - JSON objekt s klíčem `ok` nebo `error`.
+ *
+ * @see auth.php
+ * @see index.php
  */
+
 require_once __DIR__ . '/auth.php';
 header('Content-Type: application/json; charset=utf-8');
 
 /**
- * Sends a JSON error response and terminates the request.
+ * Odešle JSON chybovou odpověď a ukončí skript.
  *
- * @param string $msg  Human-readable error message.
- * @param int    $code HTTP status code to return.
+ * @param string $msg  Text chyby pro uživatele.
+ * @param int    $code HTTP status kód (výchozí 400).
  * @return void
  */
 function fail($msg, $code = 400) {
@@ -34,25 +44,32 @@ function fail($msg, $code = 400) {
     exit;
 }
 
-// permissions
+/* --- Ověření oprávnění --- */
 $isAdmin = (isset($_SESSION['ACType']) && $_SESSION['ACType'] === 'admin');
 
 if (!$isAdmin) {
     fail("Forbidden", 403);
 }
 
+/* --- Načtení vstupu --- */
 $id = isset($_POST['id']) ? $_POST['id'] : null;
-if ($id === null || $id === '') fail("Missing id");
+if ($id === null || $id === '') {
+    fail("Missing id");
+}
 
+/* --- Otevření CSV --- */
 $csv = __DIR__ . "/Database.csv";
 $fh = fopen($csv, "c+");
-if (!$fh) fail("Cannot open database", 500);
+if (!$fh) {
+    fail("Cannot open database", 500);
+}
 
 if (!flock($fh, LOCK_EX)) {
     fclose($fh);
     fail("Database busy", 503);
 }
 
+/* --- Načtení všech řádků --- */
 rewind($fh);
 $rows = array();
 while (($r = fgetcsv($fh, 0, ";")) !== false) {
@@ -67,17 +84,19 @@ if (count($rows) < 2) {
 
 $headers = $rows[0];
 $col = array_flip($headers);
+
 if (!isset($col['id'])) {
     flock($fh, LOCK_UN);
     fclose($fh);
     fail("CSV missing id column", 500);
 }
 
+/* --- Filtrování (odstranění uživatele) --- */
 $newRows = array();
 $deleted = false;
 
 foreach ($rows as $i => $row) {
-    if ($i === 0) { // header
+    if ($i === 0) { // hlavička
         $newRows[] = $row;
         continue;
     }
@@ -85,7 +104,7 @@ foreach ($rows as $i => $row) {
     $rowId = isset($row[$col['id']]) ? (string)$row[$col['id']] : '';
     if ($rowId === (string)$id) {
         $deleted = true;
-        continue; // skip this row
+        continue; // přeskočíme tento řádek = smazání
     }
 
     $newRows[] = $row;
@@ -97,7 +116,7 @@ if (!$deleted) {
     fail("User not found", 404);
 }
 
-// rewrite CSV
+/* --- Přepis CSV --- */
 ftruncate($fh, 0);
 rewind($fh);
 foreach ($newRows as $r) {
@@ -108,4 +127,5 @@ fflush($fh);
 flock($fh, LOCK_UN);
 fclose($fh);
 
+/* --- Výstup --- */
 echo json_encode(array("ok" => true));

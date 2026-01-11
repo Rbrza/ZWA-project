@@ -1,42 +1,76 @@
 <?php
 /**
- * Login handler (POST).
+ * @file login-handler.php
+ * @brief Zpracování přihlášení uživatele (POST).
  *
- * Validates email/password against Database.csv and establishes an authenticated session.
- * Uses the POST-Redirect-GET pattern:
- * - On failure: stores a flash message + old email in session and redirects back to login-page.php.
- * - On success: regenerates session id, stores login state, and redirects to person-details.php.
+ * Tento skript ověřuje přihlašovací údaje (email + heslo) proti databázi `Database.csv`
+ * a při úspěchu vytvoří autentizovanou session.
  *
- * Inputs:
- * - POST email    (string)
- * - POST password (string)
+ * Používá POST-Redirect-GET:
+ * - při chybě uloží chybovou zprávu + vyplněný email do session (flash) a přesměruje zpět na `login-page.php`
+ * - při úspěchu regeneruje session ID, uloží stav přihlášení a přesměruje na profil uživatele
  *
- * Session variables written on success:
- * - $_SESSION['logged_in'] : bool
- * - $_SESSION['user_id']   : string
- * - $_SESSION['ACType']    : string ("admin" / "user")
- * - $_SESSION['email']     : string
+ * ### Vstup
+ * - `POST email` (string)
+ * - `POST password` (string)
+ *
+ * ### Session proměnné (při úspěchu)
+ * - `$_SESSION['logged_in']` (bool) – přihlášen/nepřihlášen
+ * - `$_SESSION['user_id']` (string) – ID uživatele
+ * - `$_SESSION['ACType']` (string) – typ účtu (`admin` / `user`)
+ * - `$_SESSION['email']` (string) – email uživatele
+ *
+ * ### Flash proměnné (při chybě)
+ * - `$_SESSION['login_error']` – text chyby pro zobrazení na login stránce
+ * - `$_SESSION['login_old_email']` – předvyplnění emailu po chybě
+ *
+ * ### Bezpečnost
+ * - Používá `password_verify()` pro ověření hesla.
+ * - Používá `session_regenerate_id(true)` proti session fixation.
+ * - Přesměrování probíhá před výstupem HTML (musí být bez echo/print před header()).
+ *
+ * @see login-page.php
+ * @see auth.php
+ * @see person-details.php
  */
-if (!isset($_SESSION)) session_start();
+
+if (!isset($_SESSION)) {
+    session_start();
+}
+
 /**
- * Loads all users from a semicolon-delimited CSV file.
+ * Načte všechny uživatele ze CSV databáze.
  *
- * @param string $path Absolute path to Database.csv.
- * @return array<int,array<string,string>> List of associative rows.
+ * CSV je odděleno středníkem (`;`). První řádek je hlavička.
+ * Každý další řádek se mapuje na asociativní pole (hlavička => hodnota).
+ * Rozbité řádky (jiný počet sloupců) se ignorují.
+ *
+ * @param string $path Absolutní nebo relativní cesta k `Database.csv`.
+ * @return array<int,array<string,string>> Pole uživatelů jako asociativní záznamy.
  */
-function loadUsers($path) {
-    if (!file_exists($path)) return array();
+function loadUsers($path)
+{
+    if (!file_exists($path)) {
+        return array();
+    }
 
     $fh = fopen($path, "r");
-    if (!$fh) return array();
+    if (!$fh) {
+        return array();
+    }
 
     $header = fgetcsv($fh, 0, ";");
-    if (!$header) { fclose($fh); return array(); }
+    if (!$header) {
+        fclose($fh);
+        return array();
+    }
 
     $users = array();
 
     while (($row = fgetcsv($fh, 0, ";")) !== false) {
-        if (count($row) !== count($header)) continue;
+        if (count($row) !== count($header)) {
+            continue;
+        }
         $users[] = array_combine($header, $row);
     }
 
@@ -45,13 +79,14 @@ function loadUsers($path) {
 }
 
 /**
- * Finds a user row by email (case-insensitive).
+ * Najde uživatele podle emailu (case-insensitive).
  *
- * @param array<int,array<string,string>> $users Loaded users.
- * @param string $email Email to search.
- * @return array<string,string>|null Matching user row or null.
+ * @param array<int,array<string,string>> $users Seznam uživatelů načtený z CSV.
+ * @param string $email Email, který chceme vyhledat.
+ * @return array<string,string>|null Asociativní záznam uživatele, nebo null pokud neexistuje.
  */
-function findUserByEmail($users, $email) {
+function findUserByEmail($users, $email)
+{
     foreach ($users as $u) {
         if (isset($u["email"]) && strcasecmp($u["email"], $email) === 0) {
             return $u;
@@ -61,19 +96,26 @@ function findUserByEmail($users, $email) {
 }
 
 /**
- * Verifies a plaintext password against a stored password hash.
+ * Ověří heslo vůči uloženému hash.
  *
- * @param array<string,string>|null $user User row or null.
- * @param string $password Plaintext password supplied by the user.
- * @return bool True if the hash matches, otherwise false.
+ * @param array<string,string>|null $user Záznam uživatele nebo null.
+ * @param string $password Heslo zadané uživatelem v plaintextu.
+ * @return bool True pokud heslo sedí, jinak false.
  */
-function checkPassword($user, $password) {
-    if ($user === null) return false;
-    if (!isset($user["passwordHash"])) return false;
+function checkPassword($user, $password)
+{
+    if ($user === null) {
+        return false;
+    }
+    if (!isset($user["passwordHash"])) {
+        return false;
+    }
     return password_verify($password, $user["passwordHash"]);
 }
 
-// ---- main logic ----
+/* --------------------------------------------------------------------------
+ * Hlavní logika
+ * -------------------------------------------------------------------------- */
 
 $users = loadUsers(__DIR__ . "/Database.csv");
 
@@ -96,18 +138,18 @@ if (!checkPassword($user, $password)) {
     exit;
 }
 
-// prevent session fixation
+/* Ochrana proti session fixation */
 session_regenerate_id(true);
 
-// store login state
+/* Uložení stavu přihlášení */
 $_SESSION['logged_in'] = true;
 $_SESSION['user_id']   = $user['id'];
 $_SESSION['ACType']    = isset($user['ACType']) ? $user['ACType'] : 'user';
 $_SESSION['email']     = $user['email'];
 
-// clear old error data
+/* Úklid flash proměnných */
 unset($_SESSION['login_error'], $_SESSION['login_old_email']);
 
-// Success: redirect to user's page
+/* Přesměrování na profil */
 header("Location: person-details.php?id=" . urlencode($user['id']));
 exit;

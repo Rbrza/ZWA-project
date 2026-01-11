@@ -1,18 +1,27 @@
 <?php
 /**
- * Authentication guard.
+ * @file auth.php
+ * @brief Přístupová brána (authentication guard) pro přihlášené uživatele.
  *
- * Include this file at the top of any page that requires the user to be logged in.
- * If the user is not authenticated, they are redirected to login-page.php.
+ * Tento soubor se includuje na začátku všech stránek, které vyžadují
+ * přihlášeného uživatele.
  *
- * Side effects:
- * - Starts/continues the PHP session via session_start().
- * - Sends an HTTP redirect header on unauthenticated access.
+ * Pokud uživatel není přihlášen (`$_SESSION['logged_in'] !== true`),
+ * provede se HTTP přesměrování na `login-page.php` a skript je ukončen.
  *
- * Security notes:
- * - This file assumes your login handler sets $_SESSION['logged_in'] === true on success.
- * - Always include this BEFORE any HTML output to avoid "headers already sent".
+ * ### Vedlejší efekty
+ * - Spouští nebo obnovuje PHP session pomocí `session_start()`.
+ * - Odesílá HTTP hlavičku `Location` při nepřihlášeném přístupu.
+ *
+ * ### Bezpečnost
+ * - Předpokládá, že login-handler nastaví `$_SESSION['logged_in'] = true` při úspěšném přihlášení.
+ * - Tento soubor musí být includován **před jakýmkoliv HTML výstupem**,
+ *   jinak by `header()` způsobil chybu „headers already sent“.
+ *
+ * @see login-handler.php
+ * @see login-page.php
  */
+
 session_start();
 
 if (!isset($_SESSION['logged_in']) || $_SESSION['logged_in'] !== true) {

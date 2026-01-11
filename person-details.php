@@ -1,26 +1,47 @@
 <?php
 /**
- * Person details page (GET).
+ * @file person-details.php
+ * @brief Detail osoby (profil pojištěnce).
  *
- * Shows details of a single user (person) identified by ?id=...
- * The UI data is populated by person-details.js via get-user.php.
+ * Tato stránka zobrazuje detail jednoho uživatele (pojištěnce),
+ * identifikovaného parametrem `id` v URL.
  *
- * Access control:
- * - Admins can view any user's details.
- * - Non-admin users can only view their own details.
- *   If a non-admin tries to access another user's id, they are redirected to their own profile.
+ * Samotná data uživatele nejsou vkládána přímo do HTML,
+ * ale jsou načítána JavaScriptem `person-details.js`
+ * pomocí AJAX požadavku na `get-user.php`.
  *
- * Required query parameters:
- * - id (string|int): user id from Database.csv.
+ * ---
+ * ## Řízení přístupu
  *
- * Side effects:
- * - May redirect (Location header) for access control.
+ * - Administrátor (`ACType = "admin"`) může zobrazit libovolného uživatele.
+ * - Běžný uživatel může zobrazit pouze svůj vlastní profil.
+ * - Pokud se běžný uživatel pokusí zobrazit cizí ID,
+ *   je automaticky přesměrován na svůj vlastní profil.
  *
- * Security notes:
- * - Authentication required (auth.php).
- * - Authorization is enforced here (admin vs. own profile).
- * - The user id is passed to JS via json_encode to avoid XSS.
+ * ---
+ * ## Povinné parametry
+ *
+ * @param string|int $_GET['id'] ID uživatele uložené v `Database.csv`
+ *
+ * ---
+ * ## Vedlejší efekty
+ *
+ * - Může odeslat HTTP redirect (Location header), pokud uživatel
+ *   nemá oprávnění zobrazit požadovaný profil.
+ *
+ * ---
+ * ## Bezpečnost
+ *
+ * - Vyžaduje autentizaci (`auth.php`).
+ * - Provádí autorizaci (admin vs. vlastní profil).
+ * - ID uživatele je do JavaScriptu předáno přes `json_encode`,
+ *   aby se zabránilo XSS.
+ *
+ * @see auth.php
+ * @see get-user.php
+ * @see person-details.js
  */
+
 require_once __DIR__ . '/auth.php';
 require_once __DIR__ . '/insurance-catalog.php';
 $id = $_GET['id'];
@@ -52,8 +73,13 @@ if (!$isAdmin && (string)$id !== (string)$myId) {
           integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
     <script>
         /**
-         * USER_ID is consumed by person-details.js to request the user record from get-user.php.
-         * json_encode is used to safely inject a JS value (prevents XSS).
+         * @var string|number USER_ID
+         * @brief ID uživatele zobrazeného na stránce.
+         *
+         * Tato proměnná je použita skriptem `person-details.js`
+         * pro odeslání požadavku na `get-user.php?id=...`.
+         *
+         * Hodnota je vložena pomocí `json_encode`, aby se zabránilo XSS.
          */
         window.USER_ID = <?php echo json_encode($id); ?>;
     </script>
@@ -82,7 +108,7 @@ require_once __DIR__ . '/header.php';
         <div class="person-details-buttons">
             <a class="button-20" href="person-edit.php?id=<?php echo urlencode($id) ?>">Upravit profil</a>
             <?php if ((string)$id === (string)$_SESSION['user_id']): ?>
-                <form class="log-out-form" method="POST" action="log-out.php" style="display:inline;">
+                <form class="log-out-form form-pagination" method="POST" action="log-out.php">
                     <button class="button-20" type="submit">Odhlásit se</button>
                 </form>
             <?php endif; ?>

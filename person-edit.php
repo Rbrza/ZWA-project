@@ -1,24 +1,48 @@
 <?php
 /**
- * Person edit page (GET).
+ * @file person-edit.php
+ * @brief Editace profilu pojištěnce.
  *
- * Displays an edit form for a single user, prefilled by person-edit.js via get-user.php.
- * Submits changes to update-user.php (POST).
+ * Tato stránka zobrazuje formulář pro úpravu jednoho uživatele
+ * (pojištěnce) identifikovaného parametrem `id` v URL.
  *
- * Access control:
- * - Admins may edit any user.
- * - Non-admin users may only edit their own user row.
- *   If a non-admin tries to edit another user's id, they are redirected to their own details.
+ * Data uživatele nejsou vkládána přímo do HTML,
+ * ale jsou načítána JavaScriptem `person-edit.js`
+ * přes AJAX z endpointu `get-user.php`.
  *
- * Required query parameters:
- * - id (string|int): user id from Database.csv.
+ * Po odeslání formuláře jsou změny zpracovány skriptem `update-user.php`,
+ * který aktualizuje odpovídající řádek v `Database.csv`
+ * a případně uloží nahranou profilovou fotografii.
  *
- * Security:
- * - Requires authentication (auth.php).
- * - Authorization is enforced here.
- * - id is injected into JS using json_encode to prevent XSS.
- * - Photo uploads are handled by update-user.php.
+ * ---
+ * ## Řízení přístupu
+ *
+ * - Administrátor (`ACType = "admin"`) může editovat libovolného uživatele.
+ * - Běžný uživatel může editovat pouze svůj vlastní účet.
+ * - Pokud se běžný uživatel pokusí editovat cizí ID,
+ *   je automaticky přesměrován na svůj vlastní detail profilu.
+ *
+ * ---
+ * ## Povinné parametry
+ *
+ * @param string|int $_GET['id'] ID uživatele uložené v `Database.csv`
+ *
+ * ---
+ * ## Bezpečnost
+ *
+ * - Vyžaduje autentizaci (`auth.php`).
+ * - Provádí autorizaci (admin vs. vlastní účet).
+ * - ID uživatele a datumové omezení jsou do JavaScriptu vkládány pomocí
+ *   `json_encode`, aby se zabránilo XSS.
+ * - Nahrávání fotografií je validováno v `update-user.php`
+ *   (MIME typ, velikost, přepis souboru).
+ *
+ * @see auth.php
+ * @see get-user.php
+ * @see update-user.php
+ * @see person-edit.js
  */
+
 require_once __DIR__ . '/auth.php';
 $id = $_GET['id'];
 
@@ -49,11 +73,24 @@ if (!$isAdmin && (string)$id !== (string)$myId) {
           integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
     <script>
         /**
-         * USER_ID and MAX_DOB are consumed by person-edit.js.
-         * - USER_ID: selects which user record to load.
-         * - MAX_DOB: HTML date input max value to enforce 18+ (client-side only).
+         * @var string|number USER_ID
+         * @brief ID uživatele, který se právě edituje.
+         *
+         * Používá ho `person-edit.js` k načtení dat uživatele
+         * z `get-user.php?id=...`.
          */
         window.USER_ID = <?php echo json_encode($id); ?>;
+
+        /**
+         * @var string MAX_DOB
+         * @brief Maximální povolené datum narození (18+).
+         *
+         * Hodnota ve formátu YYYY-MM-DD.
+         * Používá se na klientovi jako `max` pro `<input type="date">`,
+         * aby uživatel nemohl vybrat mladší než 18 let.
+         *
+         * Serverová kontrola je ale vždy provedena znovu v `update-user.php`.
+         */
         window.MAX_DOB = "<?php echo (new DateTime('today'))->modify('-18 years')->format('Y-m-d'); ?>";
     </script>
     <script src="person-edit.js" defer></script>

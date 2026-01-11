@@ -1,36 +1,66 @@
 <?php
 /**
- * User update handler (POST).
+ * @file update-user.php
+ * @brief Aktualizace uživatelského profilu (POST).
  *
- * Updates editable fields of a user row in Database.csv (semicolon delimited),
- * including optional profile photo upload.
+ * Tento handler aktualizuje editovatelné údaje uživatele uložené v CSV databázi (`Database.csv`)
+ * a volitelně zpracuje nahrání profilové fotografie.
  *
- * Inputs (POST):
- * - id, name, surname, DOB, email, phone, ICO
- * - FILES photo (optional): profile image
+ * Upravované položky (pokud existují v CSV hlavičce):
+ * - `name`, `surname`, `DOB`, `email`, `phone`, `ICO`
+ * - `photo` (jen pokud sloupec existuje a byl nahrán soubor)
  *
- * Authorization:
- * - Admin can update any user.
- * - Non-admin can only update their own id.
+ * ---
+ * ## Vstup (POST / FILES)
+ * - `POST id` (string|int) – ID upravovaného uživatele
+ * - `POST name` (string) – jméno
+ * - `POST surname` (string) – příjmení
+ * - `POST DOB` (string) – datum narození ve formátu YYYY-MM-DD
+ * - `POST email` (string) – email
+ * - `POST phone` (string) – telefon (E.164-like)
+ * - `POST ICO` (string) – volitelné
+ * - `FILES photo` (optional) – profilová fotka
  *
- * Storage:
- * - Database.csv is rewritten under exclusive lock (flock).
- * - If photo is uploaded, it is stored in /uploads and path saved into CSV column 'photo' (if it exists).
+ * ---
+ * ## Autorizace
+ * - Admin (`ACType = "admin"`) může upravit libovolného uživatele.
+ * - Běžný uživatel může upravit pouze sám sebe (`$_SESSION['user_id']`).
  *
- * Output:
- * - Redirects to person-details.php?id=... (PRG).
+ * ---
+ * ## Uložení dat
+ * - `Database.csv` je přepsána metodou read-modify-write.
+ * - Zápis probíhá pod exkluzivním zámkem `flock(LOCK_EX)`.
+ * - Fotka je ukládána do `/uploads` jako stabilní jméno `profile_{id}.ext`
+ *   (předchozí fotka se přepíše).
+ * - Do CSV se ukládá relativní cesta např. `uploads/profile_12.jpg`.
  *
- * Security:
- * - Server-side validation for all fields.
- * - File upload validated by MIME via getimagesize() and size limit.
- * - CSV injection prevention on text fields.
+ * ---
+ * ## Validace
+ * - Server-side kontrola: délka jména/příjmení, email, telefon, datum narození (18+)
+ * - Ochrana proti CSV injection u textových polí (`clean()`).
+ *
+ * ---
+ * ## Výstup (PRG)
+ * - Po úspěchu provede redirect na `person-details.php?id=...`
+ *   (POST-Redirect-GET).
+ *
+ * ---
+ * ## Bezpečnost
+ * - Soubor vyžaduje přihlášení (`auth.php`).
+ * - Upload obrázku je ověřen podle obsahu (`getimagesize()`), typu a velikosti.
+ * - Neprovádí se změna `passwordHash` (pokud se výslovně neimplementuje zvlášť).
+ *
+ * @see auth.php
+ * @see person-edit.php
+ * @see person-details.php
  */
 require_once __DIR__ . '/auth.php';
+
 /**
- * Ends request with message + HTTP code.
+ * Ukončí request s chybovou zprávou a HTTP kódem.
  *
- * @param string $msg Error message to output.
- * @param int    $code HTTP status code.
+ * @param string $msg  Text chyby.
+ * @param int    $code HTTP status kód (výchozí 400).
  * @return void
  */
 function fail($msg, $code = 400)
@@ -40,16 +70,16 @@ function fail($msg, $code = 400)
     exit;
 }
 /**
- * Saves uploaded profile photo (if provided) and returns path to store in CSV.
+ * Uloží nahranou profilovou fotku a vrátí cestu pro uložení do CSV.
  *
- * Rules:
- * - No file -> returns null
- * - Validates upload status, max size, and file type by content (getimagesize)
- * - Supports JPEG, PNG, WEBP
- * - Overwrites previous photo for the user (stable filename profile_{id}.ext)
+ * Chování:
+ * - pokud nebyl nahrán soubor → vrací `null`
+ * - ověří upload, maximální velikost a typ souboru podle obsahu (getimagesize)
+ * - podporuje JPEG/PNG/WEBP
+ * - ukládá do `/uploads` a přepisuje předchozí fotku daného uživatele
  *
- * @param string|int $userId User id (used in destination filename).
- * @return string|null Relative web path like "uploads/profile_12.jpg" or null if no upload.
+ * @param string|int $userId ID uživatele (použije se pro jméno souboru).
+ * @return string|null Relativní cesta pro web (např. `uploads/profile_12.jpg`) nebo null.
  */
 function saveUploadedPhoto($userId) {
     if (!isset($_FILES['photo']) || !is_array($_FILES['photo'])) return null;
@@ -100,10 +130,13 @@ function saveUploadedPhoto($userId) {
 }
 
 /**
- * Cleans input for CSV storage and prevents CSV injection.
+ * Vyčistí textový vstup pro uložení do CSV a zabrání CSV injection.
  *
- * @param mixed $v Input value.
- * @return string Clean string.
+ * CSV injection hrozí při otevření CSV v Excelu (hodnoty začínající znaky `= + - @`),
+ * proto se taková hodnota prefixuje apostrofem.
+ *
+ * @param mixed $v Vstupní hodnota.
+ * @return string Očištěný řetězec připravený pro uložení.
  */
 function clean($v)
 {
@@ -116,12 +149,18 @@ function clean($v)
 
 $id = isset($_POST['id']) ? clean($_POST['id']) : null;
 $photoPath = saveUploadedPhoto($id);
-$id = isset($_POST['id']) ? clean($_POST['id']) : null;
 $name = isset($_POST['name']) ? clean($_POST['name']) : '';
 $surname = isset($_POST['surname']) ? clean($_POST['surname']) : '';
 $dobStr = isset($_POST['DOB']) ? clean($_POST['DOB']) : '';
-$email = isset($_POST['email']) ? clean($_POST['email']) : '';
-$phone = isset($_POST['phone']) ? clean($_POST['phone']) : '';
+$email = isset($_POST['email']) ? trim((string)$_POST['email']) : '';
+if (!filter_var($email, FILTER_VALIDATE_EMAIL)) fail("Neplatný email.");
+$email = clean($email);
+
+$phoneRaw = isset($_POST['phone']) ? $_POST['phone'] : '';
+$phone = trim((string)$phoneRaw);
+$phone = preg_replace('/\s+/', '', $phone);
+$phone = str_replace(array('-', '(', ')'), '', $phone);
+
 $ico = isset($_POST['ICO']) ? clean($_POST['ICO']) : '';
 
 // length rules

@@ -1,6 +1,6 @@
 id;name;surname;DOB;email;phone;ICO;MT;score;active_insurances;ACType;passwordHash;photo
-0;Karel;Novák;1987-01-14;Karel.Novak@example.com;420777888999;81684561;650;1.0;Zdravotní,Nemovitostní;user;123;
-2;Richard;Brza;2005-09-14;r.brza1@gmail.com;776455165;05777844;899;;zdravotni,povinne,zvirata,nemovitost;admin;$2y$10$HOh7Z8FP6Y04wBoez7zLk.VN2yHu1zenKgybyHAoZeUANgOzsyhSu;uploads/profile_2.png
+2;Richard;Brza;2005-09-14;r.brza1@gmail.com;776455165;05777844;348;;zdravotni,zivotni;admin;$2y$10$HOh7Z8FP6Y04wBoez7zLk.VN2yHu1zenKgybyHAoZeUANgOzsyhSu;uploads/profile_2.png
 3;Milan;Hastrmann;1980-06-10;Hastrman@gmail.com;420778425984;05777844;570;;nemovitost,povinne;user;$2y$10$5k4BRdEeS3LaFUWAhy7W1ebHeqRmphz0KX1Zc9awAa/VL/ToJDhxm;
-4;Veronika;Brzová;2008-01-03;r.brza4@gmail.com;607455880;05777844;579;;nemovitost,zdravotni,zvirata;user;$2y$10$j5rbUDNyIW3.KDUQ4eHkHOzDv3.PM0MAXw86LS7X1DzalJeRr8Aj.;uploads/profile_4.png
+4;Veronika;Brzová;2008-01-03;r.brza4@gmail.com;607455880;05777844;579;;nemovitost,zdravotni,zvirata;user;$2y$10$j5rbUDNyIW3.KDUQ4eHkHOzDv3.PM0MAXw86LS7X1DzalJeRr8Aj.;uploads/profile_4.jpg
 5;El;Macho;2008-01-02;el.macho@gmail.com;420776455165;;469;;povinne,zdravotni;user;$2y$10$DoL1ASK.FefMVjaXoIiuUeV27yc8nV/M4kVfEioXQ1KSy4PP9foYm;
+6;Veronika;Brzová;2008-01-02;r.brza2@gmail.com;+420607455880;;;;;user;$2y$10$oTzKPqsFIooWGLizYdZD0.pF/QMo3tWdiikhqX7pG07fB/rCDc/7O;

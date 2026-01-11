@@ -1,5 +1,12 @@
 <?php
 /**
+ * @file register-handler.php
+ * @brief Zpracování registrace nového uživatele.
+ *
+ * Validuje vstupy, kontroluje duplicitu emailu, zapisuje do Database.csv pomocí flock
+ * a používá POST-Redirect-GET.
+ */
+/**
  * Registration handler (POST).
  *
  * Validates registration form data and appends a new user row to Database.csv.
@@ -74,8 +81,14 @@ function clean($v) {
 $name    = clean($_POST['name']);
 $surname = clean($_POST['surname']);
 $dobStr  = clean($_POST['DOB']);
-$email   = clean($_POST['email']);
-$phone   = clean($_POST['phone']);
+$email = isset($_POST['email']) ? trim((string)$_POST['email']) : '';
+
+$email = clean($email);
+
+$phoneRaw = isset($_POST['phone']) ? $_POST['phone'] : '';
+$phone = trim((string)$phoneRaw);
+$phone = preg_replace('/\s+/', '', $phone);
+$phone = str_replace(array('-', '(', ')'), '', $phone);
 $password = password_hash(clean($_POST['password']),PASSWORD_DEFAULT);
 
 if ($name === '' || $surname === '' || $dobStr === '' || $email === '' || $phone === '' || $password === '') {

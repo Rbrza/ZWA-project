@@ -1,24 +1,36 @@
 <?php
 /**
- * Admin overview page: list of insured persons (CSV-backed).
+ * @file index.php
+ * @brief Administrátorský přehled pojištěnců (seznam osob).
  *
- * Responsibilities:
- * - Loads users from Database.csv (semicolon-delimited)
- * - Sorts users by surname then name (locale-aware when Intl Collator is available)
- * - Paginates the list using query parameters:
- *     - page (int)     : 1-based page number
- *     - per_page (int) : items per page (allowed: 1,5,10,20)
- * - Renders an HTML table with actions:
- *     - Zobrazit (details)
- *     - Upravit (edit)
- *     - Smazat (AJAX via delete-user.php)
+ * Tato stránka slouží administrátorovi jako přehled všech osob uložených v CSV databázi.
+ * Načítá soubor `Database.csv`, třídí osoby a zobrazuje je v tabulce s možností:
+ * - zobrazit detail osoby
+ * - upravit osobu
+ * - smazat osobu (AJAX voláním `delete-user.php`)
  *
- * Security:
- * - Requires login (auth.php)
- * - Requires admin privileges (auth-admin.php)
+ * ### Funkcionalita
+ * - Načte uživatele z `Database.csv` (oddělovač `;`).
+ * - Setřídí záznamy podle příjmení a jména:
+ *   - pokud je dostupná Intl knihovna, použije `Collator('cs_CZ')`
+ *   - jinak použije `mb_strtolower()` + `strcmp()` (fallback)
+ * - Provede stránkování podle parametrů URL:
+ *   - `page` (int) – číslo stránky od 1
+ *   - `per_page` (int) – počet položek na stránku (povoleno: 1, 5, 10, 20)
+ * - Vypíše HTML tabulku se záznamy a akcemi.
  *
- * Output:
- * - HTML page. User data is escaped with htmlspecialchars() to prevent XSS.
+ * ### Bezpečnost
+ * - Vyžaduje přihlášení (`auth.php`).
+ * - Vyžaduje administrátorská oprávnění (`auth-admin.php`).
+ * - Všechny uživatelské hodnoty vypisuje přes `htmlspecialchars()` (ochrana proti XSS).
+ *
+ * @see auth.php
+ * @see auth-admin.php
+ * @see header.php
+ * @see delete-user.php
+ * @see person-details.php
+ * @see person-edit.php
+ * @see register-page.php
  */
 require_once __DIR__ . '/auth.php';
 require_once __DIR__ . '/auth-admin.php';
@@ -104,11 +116,13 @@ $offset = ($page - 1) * $perPage;
 $usersPage = array_slice($rows, $offset, $perPage);
 
 /**
- * Builds a query-string for pagination links.
+ * Sestaví query string pro odkazy stránkování.
  *
- * @param int $page    1-based page number.
- * @param int $perPage Items per page.
- * @return string URL-encoded query string (without the leading '?').
+ * Výstup neobsahuje úvodní znak `?` (použije se např. jako `index.php?{qs(...)}`).
+ *
+ * @param int $page    Číslo stránky (od 1).
+ * @param int $perPage Počet položek na stránku.
+ * @return string Query string ve tvaru `page=...&per_page=...`.
  */
 function qs($page, $perPage)
 {
@@ -121,7 +135,7 @@ function qs($page, $perPage)
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Správa faktur</title>
+    <title>Správa pojištěnců</title>
     <link rel="stylesheet" href="styles.css">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet"
           integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
@@ -189,7 +203,7 @@ require_once __DIR__ . '/header.php';
             <?php if ($page > 1): ?>
                 <a class="button-20" href="index.php?<?php echo qs($page - 1, $perPage); ?>">&lt;-</a>
             <?php else: ?>
-                <span class="button-20" style="opacity:.5; pointer-events:none;">&lt;-</span>
+                <span class="button-20 prev-button">&lt;-</span>
             <?php endif; ?>
 
             <?php
@@ -203,7 +217,7 @@ require_once __DIR__ . '/header.php';
             // helper to render a page link / current
             $renderPage = function ($p) use ($page, $perPage) {
                 if ($p == $page) {
-                    echo '<span class="button-20" style="opacity:.7; pointer-events:none;">' . $p . '</span>';
+                    echo '<span class="button-20 current-button">' . $p . '</span>';
                 } else {
                     echo '<a class="button-20" href="index.php?page=' . urlencode($p) . '&per_page=' . urlencode($perPage) . '">' . $p . '</a>';
                 }
@@ -214,7 +228,7 @@ require_once __DIR__ . '/header.php';
             <?php if ($start > $first): ?>
                 <?php $renderPage($first); ?>
                 <?php if ($start > $first + 1): ?>
-                    <span style="padding:0 8px;">…</span>
+                    <span class="first-page-button">…</span>
                 <?php endif; ?>
             <?php endif; ?>
 
@@ -226,7 +240,7 @@ require_once __DIR__ . '/header.php';
             <!-- Last page (only if not already in window) -->
             <?php if ($end < $last): ?>
                 <?php if ($end < $last - 1): ?>
-                    <span style="padding:0 8px;">…</span>
+                    <span class="first-page-button">…</span>
                 <?php endif; ?>
                 <?php $renderPage($last); ?>
             <?php endif; ?>
@@ -235,11 +249,11 @@ require_once __DIR__ . '/header.php';
             <?php if ($page < $totalPages): ?>
                 <a class="button-20" href="index.php?<?php echo qs($page + 1, $perPage); ?>">&gt;</a>
             <?php else: ?>
-                <span class="button-20" style="opacity:.5; pointer-events:none;">&gt;</span>
+                <span class="button-20 prev-button">&gt;</span>
             <?php endif; ?>
 
             <!-- Per-page -->
-            <form method="GET" action="index.php" style="display:inline;">
+            <form method="GET" action="index.php" class="form-pagination">
                 <input type="hidden" name="page" value="1">
                 <label>
                     Vyberte si počet položek na stránku

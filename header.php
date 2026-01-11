@@ -1,20 +1,34 @@
 <?php
 /**
- * Shared site header (partial).
+ * @file header.php
+ * @brief Sdílená hlavička webu (HTML partial).
  *
- * Include this file with require_once from your pages to render the same navigation header everywhere.
- * It ensures an active session so it can show the current user's email and profile link when logged in.
+ * Tento soubor generuje jednotnou hlavičku aplikace, která se vkládá
+ * do všech stránek pomocí `require_once`.
  *
- * Variables used from session:
- * - $_SESSION['user_id'] : current user id (used to build profile URL)
- * - $_SESSION['email']   : current user email (displayed in header if logged in)
+ * Hlavička zobrazuje:
+ * - navigační odkazy (Seznam osob, Pojištění)
+ * - ikonu profilu
+ * - email přihlášeného uživatele (pokud je přihlášen)
  *
- * Output:
- * - Emits HTML <header> markup (and a print stylesheet link).
+ * ### Použité proměnné ze session
+ * - `$_SESSION['user_id']` – ID aktuálního uživatele (pro odkaz na profil)
+ * - `$_SESSION['email']` – email aktuálního uživatele (zobrazen v hlavičce)
  *
- * Notes:
- * - Because this file outputs HTML, include it only after any redirects are resolved.
+ * ### Vedlejší efekty
+ * - Pokud ještě neběží session, spustí ji pomocí `session_start()`.
+ * - Vypisuje HTML značky `<head>` a `<header>`.
+ * - Vkládá CSS styl pro tisk (`print.css`).
+ *
+ * ### Poznámky k použití
+ * - Tento soubor vypisuje HTML, proto musí být includován **až po**
+ *   vyřešení všech přesměrování (`header("Location: ...")`).
+ *
+ * @see auth.php
+ * @see person-details.php
+ * @see index.php
  */
+
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
@@ -22,6 +36,7 @@ if (session_status() === PHP_SESSION_NONE) {
 <head>
     <link rel="stylesheet" href="print.css" media="print">
 </head>
+
 <header class="header">
     <ul class="header-links">
         <li>

@@ -1,19 +1,38 @@
 <?php
 /**
- * Registration page (GET).
+ * @file register-page.php
+ * @brief Registrační formulář nového uživatele.
  *
- * Displays the registration form and renders server-side validation feedback
- * using flash values stored in session by register-handler.php.
+ * Tato stránka zobrazuje HTML formulář pro vytvoření nového účtu
+ * pojištěnce. Při chybě validace je uživatel přesměrován zpět
+ * ze skriptu `register-handler.php` pomocí POST-Redirect-GET
+ * a jsou zobrazeny chybové hlášky a původně zadané hodnoty.
  *
- * Flash session variables (consumed on page load):
- * - $_SESSION['reg_old']         : array of previous user-entered values (excluding password)
- * - $_SESSION['reg_error']       : error message to display
- * - $_SESSION['reg_error_field'] : key of the invalid field to highlight
+ * ---
+ * ## Flash proměnné v session
  *
- * Security:
- * - All flash output is escaped via htmlspecialchars to prevent XSS.
- * - Password inputs are never prefilled (requirement).
+ * Tyto hodnoty jsou nastaveny v `register-handler.php`
+ * a po vykreslení této stránky jsou zrušeny:
+ *
+ * @var array  $_SESSION['reg_old']
+ *  Pole starých hodnot formuláře (bez hesel).
+ *
+ * @var string $_SESSION['reg_error']
+ *  Text chybové zprávy k zobrazení uživateli.
+ *
+ * @var string $_SESSION['reg_error_field']
+ *  Klíč pole formuláře, které je neplatné a má být zvýrazněno.
+ *
+ * ---
+ * ## Bezpečnost
+ *
+ * - Veškerý obsah ze session je vypisován pomocí `htmlspecialchars()`
+ *   aby bylo zabráněno XSS.
+ * - Hesla nejsou nikdy předvyplňována.
+ *
+ * @see register-handler.php
  */
+
 if (!isset($_SESSION)) session_start();
 
 $old = isset($_SESSION['reg_old']) ? $_SESSION['reg_old'] : array();
@@ -23,21 +42,27 @@ $errField = isset($_SESSION['reg_error_field']) ? $_SESSION['reg_error_field'] :
 // clear flash after reading
 unset($_SESSION['reg_old'], $_SESSION['reg_error'], $_SESSION['reg_error_field']);
 /**
- * Returns an escaped "old value" for a given field key.
+ * @brief Vrátí escaped starou hodnotu formuláře.
  *
- * @param string $key Field name.
- * @param array  $old Old values array from session.
- * @return string Escaped HTML value.
+ * Používá se pro předvyplnění formuláře po chybě validace
+ * (POST-Redirect-GET).
+ *
+ * @param string $key Název pole (např. "email", "name").
+ * @param array  $old Pole hodnot uložené v $_SESSION['reg_old'].
+ * @return string Bezpečný HTML řetězec (escaped).
  */
 function oldv($key, $old) {
   return isset($old[$key]) ? htmlspecialchars($old[$key], ENT_QUOTES, 'UTF-8') : '';
 }
 /**
- * Returns a CSS class to mark an invalid field.
+ * @brief Vrátí CSS třídu pro zvýraznění chybného pole.
  *
- * @param string $key Field key for the current input.
- * @param string $errField Field key that was invalid.
- * @return string CSS class name (or empty string).
+ * Pokud klíč aktuálního pole odpovídá klíči chyby,
+ * vrátí "error", jinak prázdný řetězec.
+ *
+ * @param string $key      Název aktuálního pole.
+ * @param string $errField Klíč pole, které je neplatné.
+ * @return string Název CSS třídy nebo prázdný řetězec.
  */
 function isBad($key, $errField) {
   return ($key === $errField) ? ' error' : '';
@@ -48,7 +73,7 @@ function isBad($key, $errField) {
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Správa faktur</title>
+    <title>Registrace osoby</title>
     <link rel="stylesheet" href="styles.css">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet"
           integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">

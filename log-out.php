@@ -1,21 +1,23 @@
 <?php
 /**
- * Logout endpoint (POST recommended).
+ * @file log-out.php
+ * @brief Odhlášení uživatele (zrušení session).
  *
- * Destroys the current session so the user is fully logged out, including:
- * - Clearing all session variables
- * - Removing the session cookie (if cookies are used for sessions)
- * - Destroying the session data on the server
+ * Tento skript kompletně odhlásí aktuálně přihlášeného uživatele.
+ * Provede:
+ *  - Vymazání všech hodnot v $_SESSION
+ *  - Smazání session cookie (pokud jsou sessions vázané na cookies)
+ *  - Zničení session dat na serveru
  *
- * Finally redirects the user back to the login page (PRG-friendly).
+ * Poté přesměruje uživatele zpět na přihlašovací stránku (`login-page.php`)
+ * pomocí HTTP redirectu (POST-Redirect-GET pattern).
  *
- * Side effects:
- * - Sends Set-Cookie header (to expire the session cookie)
- * - Sends Location header redirect
+ * ### Bezpečnost
+ * - Měl by být volán přes POST formulář, aby nedošlo k nechtěnému odhlášení
+ *   (např. přes otevření odkazu nebo crawler).
+ * - Musí být spuštěn před jakýmkoli HTML výstupem.
  *
- * Security notes:
- * - Should be triggered by a POST form to avoid accidental logout from crawlers/link previews.
- * - Must run before any HTML output.
+ * @see login-page.php
  */
 session_start();
 

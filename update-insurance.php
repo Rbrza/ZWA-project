@@ -1,35 +1,58 @@
 <?php
 /**
- * Insurance update handler (POST).
+ * @file update-insurance.php
+ * @brief Zpracování změn pojištění uživatele (POST).
  *
- * Adds/removes a single insurance code from the currently logged-in user's active_insurances,
- * and recalculates MT (monthly total) as the sum of all active insurance prices.
+ * Tento handler přidá nebo odebere jedno pojištění ze seznamu
+ * aktivních pojištění přihlášeného uživatele a přepočítá měsíční
+ * celkovou částku `MT` jako součet cen všech aktivních pojištění.
  *
- * Inputs (POST):
- * - action: "add" | "remove"
- * - code: insurance product code (string)
+ * ---
+ * ## Vstup (POST)
+ * - `action` : `"add"` nebo `"remove"`
+ * - `code`   : kód pojištění (např. `nemovitost`, `zivotni`, …)
  *
- * Data storage:
- * - Database.csv (semicolon separated)
- * - active_insurances: comma-separated list of insurance codes
- * - MT: numeric string total price (CZK)
+ * ---
+ * ## Úložiště dat
+ * Data se ukládají do `Database.csv` (oddělovač `;`):
+ * - `active_insurances` : čárkou oddělený seznam kódů pojištění
+ * - `MT` : celková měsíční částka (CZK) uložená jako řetězec/číslo
  *
- * Concurrency:
- * - Uses flock(LOCK_EX) for safe read-modify-write.
+ * ---
+ * ## Algoritmus
+ * - Načte ID aktuálního uživatele ze session (`$_SESSION['user_id']`).
+ * - Validuje vstupy `action` a `code`.
+ * - Načte CSV databázi a najde řádek uživatele podle ID.
+ * - Rozparsuje `active_insurances` na množinu (set).
+ * - Podle `action` provede add/remove kódu.
+ * - Přepočítá `MT` jako součet cen aktivních pojištění podle katalogu.
+ * - Přepíše CSV zpět na disk (read-modify-write).
+ * - Přesměruje zpět na `insurance-list.php` (POST-Redirect-GET).
  *
- * Output:
- * - Redirects to insurance-list.php (PRG).
+ * ---
+ * ## Současný přístup (concurrency)
+ * - Používá `flock(LOCK_EX)` pro ochranu proti souběžnému zápisu,
+ *   aby se CSV nepoškodilo.
  *
- * Security:
- * - Requires authentication (auth.php).
- * - Only updates the logged-in user's row (user_id from session).
+ * ---
+ * ## Bezpečnost
+ * - Vyžaduje autentizaci (`auth.php`).
+ * - Upravuje pouze řádek přihlášeného uživatele (ID ze session).
+ * - Kód pojištění musí existovat v katalogu, jinak je odmítnut.
+ *
+ * @see auth.php
+ * @see insurance-list.php
+ * @see insurance-catalog.php
  */
 require_once __DIR__ . '/auth.php';
+
 /**
- * Stops execution with an HTTP status code and message.
+ * Ukončí skript s HTTP kódem a zprávou.
  *
- * @param string $msg Error message.
- * @param int    $code HTTP status.
+ * Používá se pro chybové stavy (neplatný vstup, chyba databáze, apod.).
+ *
+ * @param string $msg  Text chyby pro výpis.
+ * @param int    $code HTTP status kód (výchozí 400).
  * @return void
  */
 function fail($msg, $code = 400) {

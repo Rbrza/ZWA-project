@@ -1,18 +1,32 @@
 <?php
 /**
- * Admin authorization guard.
+ * @file auth-admin.php
+ * @brief Ověření administrátorských oprávnění uživatele.
  *
- * Include this file AFTER auth.php on pages that require administrator privileges.
- * Non-admin users are redirected to their own profile details page.
+ * Tento soubor se používá na stránkách, které vyžadují administrátorský přístup.
+ * Musí být includován **po** `auth.php`, protože předpokládá aktivní session
+ * a přihlášeného uživatele.
  *
- * Preconditions:
- * - A session has already been started (auth.php does this).
- * - $_SESSION['user_id'] contains the current user's id.
- * - $_SESSION['ACType'] contains the access type string, e.g. "admin" or "user".
+ * Pokud aktuální uživatel nemá oprávnění `admin`, je přesměrován
+ * na svou vlastní stránku s detaily profilu.
  *
- * Side effects:
- * - Sends an HTTP redirect header if the user is not an admin.
+ * ### Předpoklady
+ * - PHP session již běží (zajištěno pomocí `auth.php`).
+ * - `$_SESSION['user_id']` obsahuje ID aktuálního uživatele.
+ * - `$_SESSION['ACType']` obsahuje typ účtu (`"admin"` nebo `"user"`).
+ *
+ * ### Vedlejší efekty
+ * - Odesílá HTTP hlavičku `Location` při nepovoleném přístupu.
+ * - Ukončuje běh skriptu pomocí `exit`.
+ *
+ * ### Bezpečnost
+ * - Zabraňuje běžným uživatelům přistupovat k administrátorským funkcím.
+ * - Zajišťuje, že nelze zobrazit nebo měnit cizí účty bez oprávnění.
+ *
+ * @see auth.php
+ * @see person-details.php
  */
+
 if ($_SESSION['ACType'] !== 'admin') {
     header("Location: person-details.php?id=" . urlencode($_SESSION['user_id']));
     exit;

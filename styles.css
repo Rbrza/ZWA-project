@@ -17,6 +17,23 @@
     margin-left: 50px;
     margin-right: 50px;
 }
+.prev-button {
+    opacity:.5;
+    pointer-events:none;
+}
+.current-button {
+    opacity:.7;
+    pointer-events:none;
+}
+.mt-tax-div {
+    margin-bottom:10px;
+}
+.first-page-button {
+    padding:0 8px;
+}
+.form-pagination {
+    display: inline;
+}
 
 .header-links a {
     color: white;

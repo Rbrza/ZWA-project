@@ -1,29 +1,52 @@
 <?php
 /**
- * Read-only user lookup endpoint.
+ * @file get-user.php
+ * @brief Read-only API endpoint pro načtení jednoho uživatele z CSV databáze.
  *
- * Returns a single user record from Database.csv as JSON for a given ?id=... query parameter.
- * Used by person-details.js and person-edit.js to populate UI without embedding user data in HTML.
+ * Endpoint vrací záznam uživatele z `Database.csv` podle query parametru `?id=...`.
+ * Používá se zejména v `person-details.js` a `person-edit.js` k naplnění UI bez vkládání
+ * dat přímo do HTML.
  *
- * Response:
- * - 200: JSON object of the user row (including computed fields like active_insurances_display)
- * - 400: {"error":"Missing user ID"}
- * - 404: {"error":"User not found"}
- * - 500: {"error":"Database file not found" | "Database file empty"}
+ * ### HTTP odpovědi
+ * - **200 OK**: JSON objekt nalezeného uživatele (včetně dopočtených polí jako `active_insurances_display`)
+ * - **400 Bad Request**: `{ "error": "Missing user ID" }`
+ * - **404 Not Found**: `{ "error": "User not found" }`
+ * - **500 Internal Server Error**:
+ *   - `{ "error": "Database file not found" }`
+ *   - `{ "error": "Database file empty" }`
  *
- * Security notes:
- * - This file does not enforce auth by itself; restrict access at the page level (e.g., person-details.php),
- *   or add auth checks here if you later expose it publicly.
- * - JSON is produced with json_encode; in the frontend, prefer textContent over innerHTML.
+ * ### Bezpečnostní poznámky
+ * - Tento endpoint sám o sobě nevynucuje autentizaci. Přístup se kontroluje na úrovni stránek
+ *   (např. `person-details.php`). Pokud bys endpoint vystavil veřejně, přidej sem kontrolu `auth.php`.
+ * - Na frontendu zobrazuj hodnoty přes `textContent` a DOM API (ne přes `innerHTML`) kvůli XSS.
+ *
+ * @see person-details.php
+ * @see person-edit.php
+ * @see person-details.js
+ * @see person-edit.js
+ * @see insurance-catalog.php
  */
+
 header('Content-Type: application/json; charset=utf-8');
 
 require_once __DIR__ . '/insurance-catalog.php';
 
 /**
- * Turns "nemovitost,zivotni" into "Nemovitostní, Životní"
- * If an item is not found in catalog, it keeps the original token.
+ * Vytvoří uživatelsky čitelný seznam názvů pojištění z kódů uložených v CSV.
+ *
+ * Např. vstup `"nemovitost,zivotni"` převede na `"Nemovitostní, Životní"`.
+ * Pokud kód není v katalogu, ignoruje se (nebo lze ponechat token – dle implementace katalogu).
+ *
+ * @param string $activeCodes Seznam kódů pojištění oddělený čárkou.
+ * @return string Seznam názvů pojištění oddělený čárkou.
+ *
+ * @note Funkce `renderInsuranceNames()` typicky pochází z `insurance-catalog.php`.
+ *       Pokud ji tam máš, tuto lokální funkci můžeš odstranit a volat přímo tu z katalogu.
  */
+// (Pokud už renderInsuranceNames existuje v insurance-catalog.php, tak tuhle funkci smaž!)
+// function renderInsuranceNames($activeCodes, $catalog) { ... }
+
+/* --- Vstup --- */
 $id = isset($_GET['id']) ? $_GET['id'] : null;
 if ($id === null || $id === '') {
     http_response_code(400);
@@ -31,6 +54,7 @@ if ($id === null || $id === '') {
     exit;
 }
 
+/* --- Načtení databáze --- */
 $file = __DIR__ . '/Database.csv';
 if (!file_exists($file)) {
     http_response_code(500);
@@ -47,16 +71,19 @@ if (!$lines || count($lines) < 2) {
 
 $headers = str_getcsv(array_shift($lines), ';');
 
+/* --- Vyhledání uživatele --- */
 foreach ($lines as $line) {
     $values = str_getcsv($line, ';');
-    if (count($values) !== count($headers)) continue;
+    if (count($values) !== count($headers)) {
+        continue; // přeskoč rozbité řádky
+    }
 
     $row = array_combine($headers, $values);
 
-    if ((string)(isset($row["id"]) ? $row["id"] : "") === (string)$id) {
+    $rowId = isset($row['id']) ? (string)$row['id'] : '';
+    if ($rowId === (string)$id) {
 
-        // IMPORTANT: this is the missing piece
-        // Make sure insurance-catalog.php defines $INSURANCE_CATALOG
+        /* --- Dopočtená pole pro UI --- */
         $row['active_insurances_display'] = renderInsuranceNames(
             isset($row['active_insurances']) ? $row['active_insurances'] : '',
             isset($INSURANCE_CATALOG) ? $INSURANCE_CATALOG : array()
@@ -67,5 +94,6 @@ foreach ($lines as $line) {
     }
 }
 
+/* --- Nenalezeno --- */
 http_response_code(404);
 echo json_encode(array("error" => "User not found"), JSON_UNESCAPED_UNICODE);

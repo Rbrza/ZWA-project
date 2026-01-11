@@ -1,16 +1,24 @@
 <?php
 /**
- * Login page (GET).
+ * @file login-page.php
+ * @brief Přihlašovací stránka (GET).
  *
- * Displays the login form and any flash error message produced by login-handler.php.
+ * Zobrazuje přihlašovací formulář a případné chybové hlášky
+ * uložené ve flash session proměnných skriptem `login-handler.php`.
  *
- * Flash session variables (consumed on page load):
- * - $_SESSION['login_error']     : string error message to show above the form
- * - $_SESSION['login_old_email'] : string email value used to prefill the email field
+ * ### Flash proměnné (spotřebovány při načtení stránky)
+ * - `$_SESSION['login_error']` – text chyby z posledního pokusu o přihlášení
+ * - `$_SESSION['login_old_email']` – email zadaný uživatelem (pro předvyplnění formuláře)
  *
- * Security:
- * - Error text and old email are escaped with htmlspecialchars() to prevent XSS.
+ * Po vykreslení stránky jsou tyto proměnné obvykle zrušeny.
+ *
+ * ### Bezpečnost
+ * - Hodnoty z `$_SESSION` jsou při výpisu escapovány pomocí `htmlspecialchars()`
+ *   aby se zabránilo XSS útokům.
+ *
+ * @see login-handler.php
  */
+
 if (!isset($_SESSION)) session_start();
 
 $err = isset($_SESSION['login_error']) ? $_SESSION['login_error'] : '';
@@ -25,7 +33,7 @@ unset($_SESSION['login_error'], $_SESSION['login_old_email']);
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Správa faktur</title>
+    <title>Správa pojištěnců</title>
     <link rel="stylesheet" href="styles.css">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet"
           integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
